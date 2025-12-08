@@ -1,0 +1,372 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["caj", "gen"]
+}
+
+model apertura_cobranza {
+  id             Int       @id @default(autoincrement())
+  id_cajero      Int?
+  fecha_apertura DateTime  @db.Date
+  hora_apertura  DateTime? @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  observaciones  String?
+  estado         String?   @default("ABIERTO") @db.VarChar(15)
+  cajero         cajero?   @relation(fields: [id_cajero], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("caj")
+}
+
+model auditoria {
+  id          Int       @id @default(autoincrement())
+  tabla       String    @db.VarChar(50)
+  operacion   String    @db.VarChar(10)
+  registro_id Int?
+  usuario_bd  String?   @default(dbgenerated("CURRENT_USER"))
+  fecha       DateTime? @default(now()) @db.Timestamp(6)
+  descripcion String?
+
+  @@schema("caj")
+}
+
+model cajero {
+  id                        Int                 @id @default(autoincrement())
+  nombres                   String              @db.VarChar(100)
+  apellidos                 String              @db.VarChar(100)
+  dni                       String              @unique @db.VarChar(15)
+  cod_acceso                String
+  numeracion_inicial_recibo Int
+  numeracion_actual_recibo  Int
+  estado                    String?             @default("ACTIVO") @db.VarChar(15)
+  apertura_cobranza         apertura_cobranza[]
+  cierre_caja               cierre_caja[]
+  extorno                   extorno[]
+  pago                      pago[]
+  recibo                    recibo[]
+
+  @@schema("caj")
+}
+
+model cierre_caja {
+  id               Int       @id @default(autoincrement())
+  id_cajero        Int?
+  fecha_cierre     DateTime  @db.Date
+  hora_cierre      DateTime? @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  total_efectivo   Decimal?  @default(0) @db.Decimal(10, 2)
+  total_comisiones Decimal?  @default(0) @db.Decimal(10, 2)
+  total_general    Decimal?  @default(0) @db.Decimal(10, 2)
+  observaciones    String?
+  cajero           cajero?   @relation(fields: [id_cajero], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("caj")
+}
+
+model concepto_pago {
+  id           Int            @id @default(autoincrement())
+  descripcion  String         @db.VarChar(100)
+  monto        Decimal        @db.Decimal(10, 2)
+  pago_detalle pago_detalle[]
+
+  @@schema("caj")
+}
+
+model extorno {
+  id            Int       @id @default(autoincrement())
+  id_pago       Int?
+  id_recibo     Int?
+  id_cajero     Int?
+  motivo        String
+  fecha_extorno DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  hora_extorno  DateTime? @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  cajero        cajero?   @relation(fields: [id_cajero], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recibo        recibo?   @relation(fields: [id_recibo], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("caj")
+}
+
+model pago {
+  id                Int                @id @default(autoincrement())
+  id_usuario        Int?
+  id_cajero         Int?
+  id_tipo_pago      Int?
+  fecha_pago        DateTime?          @default(dbgenerated("CURRENT_DATE")) @db.Date
+  total             Decimal            @db.Decimal(10, 2)
+  observaciones     String?
+  cajero            cajero?            @relation(fields: [id_cajero], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tipo_pago         tipo_pago?         @relation(fields: [id_tipo_pago], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  gen_contribuyente gen_contribuyente? @relation(fields: [id_usuario], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("caj")
+}
+
+model pago_detalle {
+  id               Int            @id @default(autoincrement())
+  id_pago          Int?
+  id_concepto_pago Int?
+  cantidad         Int?           @default(1)
+  subtotal         Decimal        @db.Decimal(10, 2)
+  concepto_pago    concepto_pago? @relation(fields: [id_concepto_pago], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("caj")
+}
+
+model recibo {
+  id            Int       @id @default(autoincrement())
+  id_pago       Int?
+  id_cajero     Int?
+  numero_recibo Int
+  fecha_emision DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  total         Decimal   @db.Decimal(10, 2)
+  estado        String?   @default("EMITIDO") @db.VarChar(15)
+  extorno       extorno[]
+  cajero        cajero?   @relation(fields: [id_cajero], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("caj")
+}
+
+model tipo_pago {
+  id          Int    @id @default(autoincrement())
+  descripcion String @db.VarChar(50)
+  pago        pago[]
+
+  @@schema("caj")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gen_asociacion {
+  id             Int          @id(map: "pk_asociacion")
+  estado         String       @db.VarChar(8)
+  nombre         String       @db.VarChar(150)
+  id_distrito    Int
+  f_control      DateTime?    @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control      DateTime?    @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor DateTime?    @default(now()) @db.Timestamp(6)
+  gen_distrito   gen_distrito @relation(fields: [id_distrito], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_asociacion_distrito")
+  gen_predio     gen_predio[]
+
+  @@unique([id, id_distrito], map: "uq_asociacion_id_distrito")
+  @@unique([id_distrito, nombre], map: "uq_asociacion_nombre_distrito")
+  @@schema("gen")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gen_contribuyente {
+  id                          Int       @id(map: "pk_contribuyente") @default(autoincrement())
+  estado                      String    @db.VarChar(8)
+  fecha_creacion              DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  dni                         String?   @unique(map: "uq_contribuyente_dni") @db.VarChar(8)
+  ruc                         String?   @unique(map: "uq_contribuyente_ruc") @db.VarChar(11)
+  otro_documento_identidad    String?   @db.VarChar(30)
+  nro_documento_identidad     String?   @db.VarChar(20)
+  nombre                      String    @db.VarChar(100)
+  tipo_persona                String    @db.VarChar(10)
+  genero                      String?   @db.VarChar(6)
+  fecha_nacimiento            DateTime? @db.Date
+  domicilio_fiscal            String?
+  referencia_domicilio_fiscal String?
+  telefono_fijo               String?   @db.VarChar(9)
+  telefono_celular            String?   @db.VarChar(9)
+  celular_whatsapp            String?   @db.VarChar(9)
+  email                       String?   @db.VarChar(100)
+  observaciones               String?
+  f_control                   DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control                   DateTime? @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor              DateTime? @default(now()) @db.Timestamp(6)
+  pago                        pago[]
+
+  @@index([estado], map: "idx_contribuyente_estado")
+  @@index([nombre], map: "idx_contribuyente_nombre")
+  @@schema("gen")
+}
+
+model gen_departamento {
+  id             Int             @id(map: "pk_departamento") @default(autoincrement())
+  nombre         String          @unique(map: "uq_departamento_nombre") @db.VarChar(50)
+  f_control      DateTime?       @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control      DateTime?       @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor DateTime?       @default(now()) @db.Timestamp(6)
+  gen_predio     gen_predio[]
+  gen_provincia  gen_provincia[]
+
+  @@schema("gen")
+}
+
+model gen_distrito {
+  id                      Int                       @id(map: "pk_distrito") @default(autoincrement())
+  id_departamento         Int
+  id_provincia            Int
+  nombre                  String                    @db.VarChar(50)
+  f_control               DateTime?                 @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control               DateTime?                 @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor          DateTime?                 @default(now()) @db.Timestamp(6)
+  gen_asociacion          gen_asociacion[]
+  gen_provincia           gen_provincia             @relation(fields: [id_provincia], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_distrito_provincia")
+  gen_habilitacion_urbana gen_habilitacion_urbana[]
+  gen_predio              gen_predio[]
+  gen_sector              gen_sector[]
+  gen_via                 gen_via[]
+
+  @@schema("gen")
+}
+
+model gen_funcionario {
+  id                      Int                             @id @default(autoincrement())
+  dni                     String?
+  nombres                 String?
+  apellidos               String?
+  cargo                   String?
+  area                    String?
+  credencial_fiscalizador String?
+  estado                  Unsupported("estado_generico")?
+
+  @@schema("gen")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gen_habilitacion_urbana {
+  id                           Int                           @id(map: "pk_habilitacion_urbana")
+  estado                       String                        @db.VarChar(8)
+  id_distrito                  Int
+  id_tipo_habilitacion_urbana  Int?
+  nombre                       String                        @db.VarChar(100)
+  f_control                    DateTime?                     @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control                    DateTime?                     @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor               DateTime?                     @default(now()) @db.Timestamp(6)
+  gen_distrito                 gen_distrito                  @relation(fields: [id_distrito], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_habilitacion_distrito")
+  gen_tipo_habilitacion_urbana gen_tipo_habilitacion_urbana? @relation(fields: [id_tipo_habilitacion_urbana], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_habilitacion_tipo")
+  gen_predio                   gen_predio[]
+
+  @@unique([id, id_distrito], map: "uq_habilitacion_id_distrito")
+  @@schema("gen")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gen_predio {
+  id                      Int                     @id(map: "pk_predio") @default(autoincrement())
+  estado                  String                  @db.VarChar(11)
+  id_via                  Int?
+  id_sector               Int?
+  id_habilitacion_urbana  Int
+  ubigeo                  String?                 @default(dbgenerated("((lpad((id_departamento)::text, 2, '0'::text) || lpad((id_provincia)::text, 2, '0'::text)) || lpad((id_distrito)::text, 2, '0'::text))")) @db.VarChar(6)
+  numero                  String?                 @db.VarChar(10)
+  letra                   String?                 @db.Char(1)
+  nombre_predio           String?                 @db.VarChar(100)
+  id_tipo_interior        Int?
+  nro_interior            String?                 @db.VarChar(10)
+  manzana                 String?                 @db.VarChar(5)
+  lote                    String?                 @db.VarChar(10)
+  sublote                 String?                 @db.VarChar(10)
+  bloque                  String?                 @db.VarChar(10)
+  edificio                String?                 @db.VarChar(5)
+  piso                    String?                 @db.VarChar(5)
+  otra_numeracion         String?
+  nro_partida             String?                 @db.VarChar(20)
+  codigo_catastral        String?                 @default(dbgenerated("((((((lpad((id_departamento)::text, 2, '0'::text) || '-'::text) || lpad((id_provincia)::text, 2, '0'::text)) || '-'::text) || lpad((id_distrito)::text, 2, '0'::text)) || '-'::text) || lpad((id)::text, 6, '0'::text))")) @db.VarChar(20)
+  f_control               DateTime?               @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control               DateTime?               @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor          DateTime?               @default(now()) @db.Timestamp(6)
+  id_departamento         Int
+  id_provincia            Int
+  id_distrito             Int
+  id_asociacion           Int?
+  gen_asociacion          gen_asociacion?         @relation(fields: [id_asociacion, id_distrito], references: [id, id_distrito], onDelete: NoAction, onUpdate: NoAction, map: "fk_predio_asociacion_valida")
+  gen_departamento        gen_departamento        @relation(fields: [id_departamento], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_predio_departamento")
+  gen_distrito            gen_distrito            @relation(fields: [id_distrito], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_predio_distrito")
+  gen_habilitacion_urbana gen_habilitacion_urbana @relation(fields: [id_habilitacion_urbana, id_distrito], references: [id, id_distrito], onDelete: NoAction, onUpdate: NoAction, map: "fk_predio_habilitacion_valida")
+  gen_provincia           gen_provincia           @relation(fields: [id_provincia], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_predio_provincia")
+  gen_sector              gen_sector?             @relation(fields: [id_sector, id_distrito], references: [id, id_distrito], onDelete: NoAction, onUpdate: NoAction, map: "fk_predio_sector_valido")
+  gen_tipo_interior       gen_tipo_interior?      @relation(fields: [id_tipo_interior], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_predio_tipo_interior")
+  gen_via                 gen_via?                @relation(fields: [id_via, id_distrito], references: [id, id_distrito], onDelete: NoAction, onUpdate: NoAction, map: "fk_predio_via_valida")
+
+  @@schema("gen")
+}
+
+model gen_provincia {
+  id               Int              @id(map: "pk_provincia") @default(autoincrement())
+  id_departamento  Int
+  nombre           String           @db.VarChar(50)
+  f_control        DateTime?        @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control        DateTime?        @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor   DateTime?        @default(now()) @db.Timestamp(6)
+  gen_distrito     gen_distrito[]
+  gen_predio       gen_predio[]
+  gen_departamento gen_departamento @relation(fields: [id_departamento], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_provincia_departamento")
+
+  @@schema("gen")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gen_sector {
+  id             Int          @id(map: "pk_sector")
+  estado         String       @db.VarChar(8)
+  id_distrito    Int
+  nombre         String       @db.VarChar(50)
+  f_control      DateTime?    @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control      DateTime?    @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor DateTime?    @default(now()) @db.Timestamp(6)
+  gen_predio     gen_predio[]
+  gen_distrito   gen_distrito @relation(fields: [id_distrito], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sector_distrito")
+
+  @@unique([id, id_distrito], map: "uq_sector_id_distrito")
+  @@schema("gen")
+}
+
+model gen_tipo_habilitacion_urbana {
+  id                      Int                       @id(map: "pk_tipo_habilitacion_urbana") @default(autoincrement())
+  nombre                  String                    @unique(map: "uq_tipo_habilitacion_nombre") @db.VarChar(50)
+  abreviacion             String?                   @db.VarChar(10)
+  f_control               DateTime?                 @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control               DateTime?                 @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor          DateTime?                 @default(now()) @db.Timestamp(6)
+  gen_habilitacion_urbana gen_habilitacion_urbana[]
+
+  @@schema("gen")
+}
+
+model gen_tipo_interior {
+  id                Int          @id(map: "pk_tipo_interior") @default(autoincrement())
+  nombre            String       @unique(map: "uq_tipo_interior_nombre") @db.VarChar(50)
+  especificar_otros Boolean?     @default(false)
+  f_control         DateTime?    @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control         DateTime?    @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor    DateTime?    @default(now()) @db.Timestamp(6)
+  gen_predio        gen_predio[]
+
+  @@schema("gen")
+}
+
+model gen_tipo_via {
+  id             Int       @id(map: "pk_tipo_via") @default(autoincrement())
+  nombre         String    @unique(map: "uq_tipo_via_nombre") @db.VarChar(50)
+  abreviacion    String?   @db.VarChar(10)
+  f_control      DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control      DateTime? @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor DateTime? @default(now()) @db.Timestamp(6)
+  gen_via        gen_via[]
+
+  @@schema("gen")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model gen_via {
+  id                     Int           @id(map: "pk_via")
+  estado                 String        @db.VarChar(8)
+  id_habilitacion_urbana Int
+  id_sector              Int?
+  id_tipo_via            Int?
+  nombre                 String        @db.VarChar(100)
+  f_control              DateTime?     @default(dbgenerated("CURRENT_DATE")) @db.Date
+  h_control              DateTime?     @default(dbgenerated("CURRENT_TIME")) @db.Time(6)
+  fecha_servidor         DateTime?     @default(now()) @db.Timestamp(6)
+  id_distrito            Int?
+  gen_predio             gen_predio[]
+  gen_distrito           gen_distrito? @relation(fields: [id_distrito], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_via_distrito")
+  gen_tipo_via           gen_tipo_via? @relation(fields: [id_tipo_via], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_via_tipo")
+
+  @@unique([id, id_distrito], map: "uq_via_id_distrito")
+  @@schema("gen")
+}
