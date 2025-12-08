@@ -112,19 +112,57 @@ app.post("/extornos", async (req, res) => {
 });
 
 /* -------------------------
-           PAGO
+        PAGO
 -------------------------- */
 
+// Get all pagos
 app.get("/pagos", async (_req, res) => {
-  const data = await prisma.pago.findMany();
+  const data = await prisma.pago.findMany({
+    include: {
+      cajero: true,
+      tipo_pago: true,
+      gen_contribuyente: true,
+    },
+    orderBy: { id: "asc" },
+  });
   res.json(data);
 });
 
+// Get pago by ID
+app.get("/pagos/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const data = await prisma.pago.findUnique({
+    where: { id },
+    include: { cajero: true, tipo_pago: true, gen_contribuyente: true },
+  });
+  res.json(data);
+});
+
+// Create pago
 app.post("/pagos", async (req, res) => {
   const data = await prisma.pago.create({
     data: req.body,
   });
   res.json(data);
+});
+
+// Update pago
+app.put("/pagos/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const data = await prisma.pago.update({
+    where: { id },
+    data: req.body,
+  });
+  res.json(data);
+});
+
+// Delete pago
+app.delete("/pagos/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const data = await prisma.pago.delete({
+    where: { id },
+  });
+  res.json({ deleted: true, id });
 });
 
 /* -------------------------
