@@ -191,6 +191,23 @@ app.post("/contribuyentes", async (req, res) => {
   res.json(data);
 });
 
+// Update contribuyente
+app.put("/contribuyentes/:id", async (req, res) => {
+  const data = await prisma.gen_contribuyente.update({
+    where: { id: Number(req.params.id) },
+    data: req.body,
+  });
+  res.json(data);
+});
+
+// Delete contribuyente
+app.delete("/contribuyentes/:id", async (req, res) => {
+  await prisma.gen_contribuyente.delete({
+    where: { id: Number(req.params.id) },
+  });
+  res.json({ message: "Contribuyente deleted successfully" });
+});
+
 /* -------------------------
          SERVER
 -------------------------- */
