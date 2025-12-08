@@ -48,6 +48,21 @@ app.post("/cajeros", async (req, res) => {
   res.json(data);
 });
 
+app.put("/cajeros/:id", async (req, res) => {
+  const data = await prisma.cajero.update({
+    where: { id: Number(req.params.id) },
+    data: req.body,
+  });
+  res.json(data);
+});
+
+app.delete("/cajeros/:id", async (req, res) => {
+  await prisma.cajero.delete({
+    where: { id: Number(req.params.id) },
+  });
+  res.json({ message: "Cajero deleted successfully" });
+});
+
 /* -------------------------
          RECIBO
 -------------------------- */
