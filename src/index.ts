@@ -185,16 +185,65 @@ app.post("/pago-detalle", async (req, res) => {
        CONCEPTO_PAGO
 -------------------------- */
 
+// Get all conceptos
 app.get("/conceptos_pago", async (_req, res) => {
-  const data = await prisma.concepto_pago.findMany();
-  res.json(data);
+  try {
+    const data = await prisma.concepto_pago.findMany();
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch conceptos" });
+  }
 });
 
+// Get one concepto by ID
+app.get("/conceptos_pago/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const data = await prisma.concepto_pago.findUnique({ where: { id } });
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch concepto" });
+  }
+});
+
+// Create concepto
 app.post("/conceptos_pago", async (req, res) => {
-  const data = await prisma.concepto_pago.create({
-    data: req.body,
-  });
-  res.json(data);
+  try {
+    const data = await prisma.concepto_pago.create({ data: req.body });
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create concepto" });
+  }
+});
+
+// Update concepto
+app.put("/conceptos_pago/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const data = await prisma.concepto_pago.update({
+      where: { id },
+      data: req.body,
+    });
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update concepto" });
+  }
+});
+
+// Delete concepto
+app.delete("/conceptos_pago/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await prisma.concepto_pago.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete concepto" });
+  }
 });
 
 /* -------------------------
