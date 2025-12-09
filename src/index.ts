@@ -7,7 +7,7 @@ app.use(express.json());
 app.use(cors());
 
 const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 2000;
 
 // =============================
 //         TEST ROUTE
