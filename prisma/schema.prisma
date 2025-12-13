@@ -99,6 +99,7 @@ model pago {
   cajero            cajero?            @relation(fields: [id_cajero], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tipo_pago         tipo_pago?         @relation(fields: [id_tipo_pago], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gen_contribuyente gen_contribuyente? @relation(fields: [id_usuario], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recibo            recibo[]
 
   @@schema("caj")
 }
@@ -124,6 +125,7 @@ model recibo {
   estado        String?   @default("EMITIDO") @db.VarChar(15)
   extorno       extorno[]
   cajero        cajero?   @relation(fields: [id_cajero], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pago          pago?     @relation(fields: [id_pago], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("caj")
 }

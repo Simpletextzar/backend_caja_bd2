@@ -79,6 +79,21 @@ app.post("/recibos", async (req, res) => {
   res.json(data);
 });
 
+app.get("/recibos/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const data = await prisma.recibo.findUnique({
+    where: { id },
+    include: {
+      pago: true, // si existe relación
+    },
+  });
+
+  if (!data) {
+    return res.status(404).json({ error: "Recibo not found" });
+  }
+
+  res.json(data);
+});
 /* -------------------------
          CIERRE_CAJA
 -------------------------- */
