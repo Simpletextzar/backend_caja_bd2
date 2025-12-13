@@ -120,10 +120,47 @@ app.get("/extornos", async (_req, res) => {
 });
 
 app.post("/extornos", async (req, res) => {
-  const data = await prisma.extorno.create({
-    data: req.body,
-  });
-  res.json(data);
+  const { id_recibo, motivo } = req.body;
+
+  if (!id_recibo || !motivo) {
+    return res.status(400).json({ message: "Datos incompletos" });
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const recibo = await tx.recibo.findUnique({
+        where: { id: id_recibo },
+      });
+
+      if (!recibo) {
+        throw new Error("Recibo no existe");
+      }
+
+      if (recibo.estado === "EXTORNADO") {
+        throw new Error("El recibo ya fue extornado");
+      }
+
+      const extorno = await tx.extorno.create({
+        data: {
+          id_recibo,
+          motivo,
+        },
+      });
+
+      await tx.recibo.update({
+        where: { id: id_recibo },
+        data: {
+          estado: "EXTORNADO",
+        },
+      });
+
+      return extorno;
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
 });
 
 /* -------------------------
